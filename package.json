@@ -1,0 +1,23 @@
+{
+  "name": "royal-spades",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Local LAN party Spades — TV table view + phone controllers",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "test": "npm run test -w shared",
+    "typecheck": "npm run typecheck -w shared && npm run typecheck -w server && npm run typecheck -w client",
+    "build": "npm run build -w client",
+    "start": "npm run start -w server",
+    "party": "npm run build && npm run start",
+    "dev": "concurrently -n server,client -c blue,magenta \"npm run dev -w server\" \"npm run dev -w client\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.5.4"
+  }
+}

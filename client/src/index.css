@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Overwritten at runtime by applyTheme(); defaults = Royal Sapphire */
+  --felt: #0d1b3d;
+  --felt-glow: #1d3468;
+  --felt-deep: #060d21;
+  --gold: #d4af37;
+  --gold-soft: #f0dfa8;
+  --gold-glow: rgba(212, 175, 55, 0.35);
+  --accent: #8a63d2;
+  --text-on: #f4ecd7;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  font-family: Inter, system-ui, sans-serif;
+  color: var(--text-on);
+  overscroll-behavior: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Velvet felt: layered radial glow + woven texture + heavy vignette   */
+/* ------------------------------------------------------------------ */
+.felt-bg {
+  background-color: var(--felt);
+  background-image:
+    radial-gradient(ellipse 90% 70% at 50% 42%, var(--felt-glow) 0%, var(--felt) 62%, var(--felt-deep) 100%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 4px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.02) 0 2px, transparent 2px 4px);
+}
+
+.vignette::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 22vmin 4vmin rgba(0, 0, 0, 0.55);
+}
+
+/* Warm gold text with a faint sheen */
+.gold-text {
+  color: var(--gold-soft);
+  background: linear-gradient(178deg, #f7e9bd 0%, var(--gold) 55%, #a07d1c 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
+}
+
+/* Ornate panel: layered gold border over a deep lacquer ground */
+.cartouche {
+  position: relative;
+  background:
+    linear-gradient(160deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 40%),
+    linear-gradient(180deg, rgba(12, 9, 4, 0.92), rgba(20, 15, 6, 0.88));
+  border: 1px solid var(--gold);
+  box-shadow:
+    inset 0 0 0 3px rgba(12, 9, 4, 0.9),
+    inset 0 0 0 4px var(--gold),
+    0 10px 40px rgba(0, 0, 0, 0.55);
+  border-radius: 0.9rem;
+}
+
+.gold-rule {
+  height: 1px;
+  border: none;
+  background: linear-gradient(90deg, transparent, var(--gold) 20%, var(--gold-soft) 50%, var(--gold) 80%, transparent);
+}
+
+.btn-gold {
+  font-family: Cinzel, Georgia, serif;
+  letter-spacing: 0.08em;
+  color: #241a05;
+  background: linear-gradient(180deg, #f4e3a7 0%, var(--gold) 55%, #b28a1f 100%);
+  border: 1px solid #8a6a14;
+  box-shadow: 0 2px 0 #6d5410, 0 8px 20px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  border-radius: 0.6rem;
+  transition: transform 120ms ease, filter 120ms ease, box-shadow 120ms ease;
+}
+.btn-gold:not(:disabled):hover {
+  filter: brightness(1.06);
+}
+.btn-gold:not(:disabled):active {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #6d5410, 0 4px 12px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.btn-gold:disabled {
+  filter: grayscale(0.55) brightness(0.75);
+  cursor: not-allowed;
+}
+
+.btn-quiet {
+  color: var(--gold-soft);
+  border: 1px solid var(--gold);
+  border-radius: 0.6rem;
+  background: rgba(0, 0, 0, 0.35);
+  transition: background 120ms ease;
+}
+.btn-quiet:not(:disabled):hover {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* Playing card chrome shared by faces and backs */
+.card-shell {
+  border-radius: 8% / 5.7%;
+  overflow: hidden;
+  background: #fbf7ee;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45), 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+
+.active-glow {
+  box-shadow: 0 0 0 2px var(--gold), 0 0 26px 6px var(--gold-glow);
+}
+
+@keyframes seat-pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--gold), 0 0 18px 3px var(--gold-glow); }
+  50% { box-shadow: 0 0 0 2px var(--gold-soft), 0 0 32px 9px var(--gold-glow); }
+}
+.seat-active {
+  animation: seat-pulse 2.2s ease-in-out infinite;
+}
+
+/* Thin scrollbars on host control drawers */
+.royal-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.royal-scroll::-webkit-scrollbar-thumb { background: var(--gold); border-radius: 4px; }
+.royal-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.4); }
