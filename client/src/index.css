@@ -53,18 +53,22 @@ body {
   filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.55));
 }
 
-/* Ornate panel: layered gold border over a deep lacquer ground */
-.cartouche {
-  position: relative;
-  background:
-    linear-gradient(160deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 40%),
-    linear-gradient(180deg, rgba(12, 9, 4, 0.92), rgba(20, 15, 6, 0.88));
-  border: 1px solid var(--gold);
-  box-shadow:
-    inset 0 0 0 3px rgba(12, 9, 4, 0.9),
-    inset 0 0 0 4px var(--gold),
-    0 10px 40px rgba(0, 0, 0, 0.55);
-  border-radius: 0.9rem;
+/* Ornate panel: layered gold border over a deep lacquer ground.
+   Lives in the components layer so positioning utilities (fixed/absolute)
+   on the same element override its default position: relative. */
+@layer components {
+  .cartouche {
+    position: relative;
+    background:
+      linear-gradient(160deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 40%),
+      linear-gradient(180deg, rgba(12, 9, 4, 0.92), rgba(20, 15, 6, 0.88));
+    border: 1px solid var(--gold);
+    box-shadow:
+      inset 0 0 0 3px rgba(12, 9, 4, 0.9),
+      inset 0 0 0 4px var(--gold),
+      0 10px 40px rgba(0, 0, 0, 0.55);
+    border-radius: 0.9rem;
+  }
 }
 
 .gold-rule {

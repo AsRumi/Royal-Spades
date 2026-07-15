@@ -7,10 +7,6 @@ export function Scoreboard() {
   const room = useApp((s) => s.room);
   if (!pub) return null;
 
-  // Note: the outer wrapper must stay a plain positioned div — `.cartouche`
-  // sets `position: relative` after Tailwind's utilities, so putting
-  // `absolute` on the cartouche element itself gets overridden and the panel
-  // falls into normal flow, stretching across the whole top of the screen.
   return (
     <div className="absolute left-[2vmin] top-[2vmin] z-20">
       <div className="cartouche min-w-[22vmin] px-[2.2vmin] py-[1.4vmin]">

@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { getSocket } from '../socket';
 import { useApp } from '../store';
+import { AceAnimationOverlay } from './AceAnimationOverlay';
 import { GameTable } from './GameTable';
 import { HostControls } from './HostControls';
 import { Lobby } from './Lobby';
@@ -56,6 +57,7 @@ export function TableView() {
   return (
     <div className="felt-bg vignette relative h-screen w-screen overflow-hidden">
       {inGame ? <GameTable /> : <Lobby />}
+      <AceAnimationOverlay />
       <HostControls />
     </div>
   );
