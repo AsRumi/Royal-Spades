@@ -280,6 +280,19 @@ export function wireSockets(io: Io, buildJoinUrl: (roomCode: string) => string):
       if (!room) return;
       const themeId = String(payload?.themeId ?? '');
       if (!themeId) return;
+      const table = payload?.tableImage ?? null;
+      if (table) {
+        if (!table.id || typeof table.src !== 'string' || !table.src.startsWith('data:image/')) return;
+        // Custom tables travel as downscaled data URLs; cap the size so a huge
+        // image can't clog the LAN broadcast (same discipline as back:set).
+        if (table.src.length > 1_500_000) {
+          emitError(socket, 'TABLE_TOO_LARGE', 'That table image is too large.');
+          return;
+        }
+        room.tableImage = { id: table.id, name: String(table.name ?? 'Custom table'), src: table.src };
+      } else {
+        room.tableImage = null;
+      }
       room.themeId = themeId;
       broadcastRoomState(room);
     });

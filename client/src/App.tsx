@@ -8,11 +8,12 @@ import { applyTheme, DEFAULT_THEME_ID } from './themes';
 
 export function App() {
   const themeId = useApp((s) => s.room?.themeId);
+  const tableImageSrc = useApp((s) => s.room?.tableImage?.src ?? null);
 
   // Host-selected theme is broadcast with room:state; every screen applies it.
   useEffect(() => {
-    applyTheme(themeId ?? DEFAULT_THEME_ID);
-  }, [themeId]);
+    applyTheme(themeId ?? DEFAULT_THEME_ID, tableImageSrc);
+  }, [themeId, tableImageSrc]);
 
   return (
     <>

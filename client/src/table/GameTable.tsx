@@ -37,17 +37,19 @@ export function GameTable() {
 
   return (
     <div className="relative h-full w-full">
-      {/* Gold table rail */}
-      <div
-        className="absolute left-1/2 top-[46%] h-[56%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-2 border-gold/50"
-        style={{
-          boxShadow:
-            'inset 0 0 60px rgba(0,0,0,0.45), inset 0 0 0 6px rgba(0,0,0,0.25), 0 0 40px rgba(0,0,0,0.35)',
-        }}
-      />
+      {/* Gold table rail — a custom table photo brings its own table edge */}
+      {!room?.tableImage && (
+        <div
+          className="absolute left-1/2 top-[46%] h-[56%] w-[58%] -translate-x-1/2 -translate-y-1/2 rounded-[50%] border-2 border-gold/50"
+          style={{
+            boxShadow:
+              'inset 0 0 60px rgba(0,0,0,0.45), inset 0 0 0 6px rgba(0,0,0,0.25), 0 0 40px rgba(0,0,0,0.35)',
+          }}
+        />
+      )}
 
-      {/* Status band */}
-      <div className="absolute left-1/2 top-[2.4vmin] z-20 -translate-x-1/2 text-center">
+      {/* Status band — top right, clear of the top seat and the scoreboard */}
+      <div className="absolute right-[2.4vmin] top-[2.4vmin] z-20 text-right">
         <div className="cartouche px-[3.4vmin] py-[1.1vmin]">
           <span className="font-display text-[2.4vmin] tracking-[0.08em] text-ivory">
             {waitingOnDisconnected

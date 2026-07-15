@@ -115,6 +115,7 @@ export function LumaVideo({ src, onEnded }: LumaVideoProps) {
         playsInline
         preload="auto"
         onEnded={onEnded}
+        onError={onEnded}
         className={
           webglFailed
             ? 'absolute inset-0 h-full w-full object-cover mix-blend-screen'

@@ -35,6 +35,16 @@ body {
     repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.02) 0 2px, transparent 2px 4px);
 }
 
+/* Host-imported custom table: the photo replaces the velvet, with a soft
+   radial scrim on top so seats, cards, and gold text stay readable. */
+.custom-table .felt-bg {
+  background-image:
+    radial-gradient(ellipse 90% 70% at 50% 42%, rgba(0, 0, 0, 0.12) 0%, rgba(0, 0, 0, 0.38) 62%, rgba(0, 0, 0, 0.62) 100%),
+    var(--felt-image, none);
+  background-size: cover;
+  background-position: center;
+}
+
 .vignette::after {
   content: '';
   position: absolute;

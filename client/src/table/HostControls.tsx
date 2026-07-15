@@ -1,12 +1,14 @@
 import type { CardBack } from '@shared';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useRef, useState } from 'react';
-import { ACE_ANIMATIONS } from '../aceAnimations';
+import { ACE_ANIMATIONS, addCustomAnimation, deleteCustomAnimation, loadCustomAnimations } from '../aceAnimations';
 import { deleteCustomBack, exportCustomBacks, importCustomBacks, loadCustomBacks, BUILTIN_BACKS } from '../backs';
 import { getSocket } from '../socket';
 import { useApp } from '../store';
+import { deleteCustomTable, loadCustomTables, type CustomTable } from '../tables';
 import { THEMES, themeById } from '../themes';
 import { BackMaker } from './BackMaker';
+import { TableMaker } from './TableMaker';
 
 // Small host affordance on the TV (the laptop is the host): theme, card back,
 // the back maker, export/import, restart. Gameplay input never happens here.
@@ -17,19 +19,61 @@ export function HostControls() {
   const aceAnimationId = useApp((s) => s.aceAnimationId);
   const setAceAnimation = useApp((s) => s.setAceAnimation);
   const triggerAceTest = useApp((s) => s.triggerAceTest);
+  const customAnims = useApp((s) => s.customAnimations);
+  const setCustomAnimations = useApp((s) => s.setCustomAnimations);
   const [open, setOpen] = useState(false);
   const [makerOpen, setMakerOpen] = useState(false);
+  const [tableMakerOpen, setTableMakerOpen] = useState(false);
   const [customBacks, setCustomBacks] = useState<CardBack[]>(() => loadCustomBacks());
+  const [customTables, setCustomTables] = useState<CustomTable[]>(() => loadCustomTables());
   const importInput = useRef<HTMLInputElement>(null);
+
+  const animInput = useRef<HTMLInputElement>(null);
 
   const socket = getSocket();
 
+  // New animations need no keying step here: the overlay's luma-key shader
+  // turns black transparent at render time for whatever video it's handed.
+  const handleAddAnimation = async (file: File) => {
+    if (!file.type.startsWith('video/')) {
+      pushToast('That file is not a video.');
+      return;
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      pushToast('Keep animation videos under 50 MB.');
+      return;
+    }
+    try {
+      const anim = await addCustomAnimation(file);
+      setCustomAnimations(await loadCustomAnimations());
+      setAceAnimation(anim.id);
+      pushToast(`Added "${anim.name}" — its black background will play as transparent.`);
+    } catch {
+      pushToast('Could not save that animation.');
+    }
+  };
+
+  const handleDeleteAnimation = async (id: string) => {
+    await deleteCustomAnimation(id);
+    setCustomAnimations(await loadCustomAnimations());
+    if (aceAnimationId === id) setAceAnimation(ACE_ANIMATIONS[0].id);
+  };
+
   const selectTheme = (themeId: string) => {
-    socket.emit('theme:set', { themeId });
+    // Builtin theme: clears any custom table along with it.
+    socket.emit('theme:set', { themeId, tableImage: null });
     // A theme carries its own default back; apply it too, per 05.
     const theme = themeById(themeId);
     const back = BUILTIN_BACKS.find((b) => b.id === theme.defaultBackId) ?? BUILTIN_BACKS[0];
     socket.emit('back:set', { back: { id: back.id, name: back.name, kind: 'builtin' } });
+  };
+
+  const selectTable = (table: CustomTable) => {
+    // The photo replaces the felt; its base theme keeps supplying the tokens.
+    socket.emit('theme:set', {
+      themeId: table.baseThemeId,
+      tableImage: { id: table.id, name: table.name, src: table.src },
+    });
   };
 
   const selectBack = (back: CardBack) => {
@@ -100,13 +144,13 @@ export function HostControls() {
               <h3 className="mb-[1vmin] font-ui text-[1.4vmin] uppercase tracking-[0.28em] text-ivory/70">
                 Table Theme
               </h3>
-              <div className="mb-[2.2vmin] flex flex-col gap-[1vmin]">
+              <div className="mb-[1.2vmin] flex flex-col gap-[1vmin]">
                 {THEMES.map((theme) => (
                   <button
                     key={theme.id}
                     onClick={() => selectTheme(theme.id)}
                     className={`flex items-center gap-[1.2vmin] rounded-lg border px-[1.2vmin] py-[1vmin] text-left transition ${
-                      room?.themeId === theme.id
+                      room?.themeId === theme.id && !room?.tableImage
                         ? 'border-gold bg-black/50 shadow-glow'
                         : 'border-gold/30 bg-black/25 hover:border-gold/70'
                     }`}
@@ -119,6 +163,43 @@ export function HostControls() {
                   </button>
                 ))}
               </div>
+              {customTables.length > 0 && (
+                <div className="mb-[1.2vmin] grid grid-cols-2 gap-[1vmin]">
+                  {customTables.map((table) => (
+                    <div key={table.id} className="group relative">
+                      <button
+                        onClick={() => selectTable(table)}
+                        title={table.name}
+                        className={`w-full overflow-hidden rounded-md border transition ${
+                          room?.tableImage?.id === table.id
+                            ? 'border-gold shadow-glow'
+                            : 'border-gold/30 hover:border-gold/70'
+                        }`}
+                      >
+                        <img src={table.src} alt={table.name} className="aspect-video w-full object-cover" />
+                        <span className="block truncate bg-black/50 px-[0.8vmin] py-[0.4vmin] font-display text-[1.4vmin] text-ivory">
+                          {table.name}
+                        </span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setCustomTables(deleteCustomTable(table.id));
+                        }}
+                        title="Delete this table"
+                        className="absolute -right-1 -top-1 hidden h-5 w-5 items-center justify-center rounded-full border border-gold bg-night text-xs text-gold-soft group-hover:flex"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                onClick={() => setTableMakerOpen(true)}
+                className="btn-quiet mb-[2.2vmin] w-full py-[0.8vmin] font-ui text-[1.4vmin]"
+              >
+                ＋ Custom table from an image…
+              </button>
 
               <h3 className="mb-[1vmin] font-ui text-[1.4vmin] uppercase tracking-[0.28em] text-ivory/70">
                 Card Back
@@ -184,28 +265,57 @@ export function HostControls() {
                 Ace of Spades Effect
               </h3>
               <div className="mb-[1.2vmin] flex flex-col gap-[1vmin]">
-                {[null, ...ACE_ANIMATIONS.map((a) => a.id)].map((id) => {
-                  const anim = ACE_ANIMATIONS.find((a) => a.id === id);
+                {[null, ...ACE_ANIMATIONS, ...customAnims].map((anim) => {
+                  const id = anim?.id ?? null;
+                  const isCustom = anim !== null && !ACE_ANIMATIONS.some((b) => b.id === anim.id);
                   return (
-                    <button
-                      key={id ?? 'none'}
-                      onClick={() => setAceAnimation(id)}
-                      className={`flex items-center gap-[1.2vmin] rounded-lg border px-[1.2vmin] py-[1vmin] text-left transition ${
-                        aceAnimationId === id
-                          ? 'border-gold bg-black/50 shadow-glow'
-                          : 'border-gold/30 bg-black/25 hover:border-gold/70'
-                      }`}
-                    >
-                      <span className="w-[3vmin] shrink-0 text-center font-display text-[2.2vmin] text-gold-soft">
-                        {anim ? '♠' : '◦'}
-                      </span>
-                      <span className="font-display text-[1.8vmin] text-ivory">
-                        {anim ? anim.name : 'None'}
-                      </span>
-                    </button>
+                    <div key={id ?? 'none'} className="group relative">
+                      <button
+                        onClick={() => setAceAnimation(id)}
+                        className={`flex w-full items-center gap-[1.2vmin] rounded-lg border px-[1.2vmin] py-[1vmin] text-left transition ${
+                          aceAnimationId === id
+                            ? 'border-gold bg-black/50 shadow-glow'
+                            : 'border-gold/30 bg-black/25 hover:border-gold/70'
+                        }`}
+                      >
+                        <span className="w-[3vmin] shrink-0 text-center font-display text-[2.2vmin] text-gold-soft">
+                          {anim ? '♠' : '◦'}
+                        </span>
+                        <span className="truncate font-display text-[1.8vmin] text-ivory">
+                          {anim ? anim.name : 'None'}
+                        </span>
+                      </button>
+                      {isCustom && (
+                        <button
+                          onClick={() => void handleDeleteAnimation(anim.id)}
+                          title="Delete this animation"
+                          className="absolute -right-1 -top-1 hidden h-5 w-5 items-center justify-center rounded-full border border-gold bg-night text-xs text-gold-soft group-hover:flex"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
+              <button
+                onClick={() => animInput.current?.click()}
+                className="btn-quiet mb-[1.2vmin] w-full py-[0.8vmin] font-ui text-[1.4vmin]"
+                title="Use a video with a black background — black plays as transparent"
+              >
+                ＋ Add animation video…
+              </button>
+              <input
+                ref={animInput}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) void handleAddAnimation(file);
+                  e.target.value = '';
+                }}
+              />
               {aceAnimationId !== null && (
                 <button
                   onClick={() => {
@@ -246,6 +356,17 @@ export function HostControls() {
             setCustomBacks(loadCustomBacks());
             selectBack(back);
             setMakerOpen(false);
+          }}
+        />
+      )}
+
+      {tableMakerOpen && (
+        <TableMaker
+          onClose={() => setTableMakerOpen(false)}
+          onSaved={(table) => {
+            setCustomTables(loadCustomTables());
+            selectTable(table);
+            setTableMakerOpen(false);
           }}
         />
       )}

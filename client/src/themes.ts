@@ -59,7 +59,10 @@ export function themeById(themeId: string): Theme {
   return THEMES.find((t) => t.id === themeId) ?? THEMES[0];
 }
 
-export function applyTheme(themeId: string): void {
+// tableImageSrc: a host-imported photo (data URL) that replaces the velvet
+// felt while the theme keeps supplying the gold/text tokens. The `.custom-table`
+// class flips `.felt-bg` from the woven-velvet gradients to the image + scrim.
+export function applyTheme(themeId: string, tableImageSrc?: string | null): void {
   const theme = themeById(themeId);
   const extras = EXTRAS[theme.id] ?? EXTRAS[DEFAULT_THEME_ID];
   const root = document.documentElement.style;
@@ -71,5 +74,11 @@ export function applyTheme(themeId: string): void {
   root.setProperty('--gold-glow', extras.goldGlow);
   root.setProperty('--accent', theme.accent);
   root.setProperty('--text-on', theme.textOn);
+  if (tableImageSrc) {
+    root.setProperty('--felt-image', `url("${tableImageSrc}")`);
+  } else {
+    root.removeProperty('--felt-image');
+  }
+  document.documentElement.classList.toggle('custom-table', Boolean(tableImageSrc));
   document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.felt);
 }

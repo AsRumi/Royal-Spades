@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useRef, useState } from 'react';
-import { aceAnimationById } from '../aceAnimations';
+import { ACE_ANIMATIONS, aceAnimationById, loadCustomAnimations } from '../aceAnimations';
 import { LumaVideo } from '../components/LumaVideo';
 import { useApp } from '../store';
 
@@ -13,13 +13,33 @@ const ACE_OF_SPADES = 'S14';
 export function AceAnimationOverlay() {
   const pub = useApp((s) => s.pub);
   const animId = useApp((s) => s.aceAnimationId);
+  const customAnims = useApp((s) => s.customAnimations);
   const testNonce = useApp((s) => s.aceTestNonce);
   const [playing, setPlaying] = useState<{ src: string; key: number } | null>(null);
   const seenThisHand = useRef(false);
   const playCount = useRef(0);
   const lastNonce = useRef(testNonce);
 
-  const anim = animId ? aceAnimationById(animId) : null;
+  // Pull host-uploaded animations out of IndexedDB once; if the persisted
+  // selection points at an animation that no longer exists, fall back to the
+  // default built-in so the effect keeps working.
+  useEffect(() => {
+    void loadCustomAnimations().then((anims) => {
+      const { setCustomAnimations, aceAnimationId, setAceAnimation } = useApp.getState();
+      setCustomAnimations(anims);
+      if (
+        aceAnimationId &&
+        !aceAnimationById(aceAnimationId) &&
+        !anims.some((a) => a.id === aceAnimationId)
+      ) {
+        setAceAnimation(ACE_ANIMATIONS[0].id);
+      }
+    });
+  }, []);
+
+  const anim = animId
+    ? (aceAnimationById(animId) ?? customAnims.find((a) => a.id === animId) ?? null)
+    : null;
 
   // A new hand always opens with BIDDING (as does a restarted game), so that's
   // the safe point to re-arm the once-per-hand trigger.

@@ -1,6 +1,6 @@
 import type { CardId, PublicGameState, RoomStatePayload } from '@shared';
 import { create } from 'zustand';
-import { loadAceAnimationId, saveAceAnimationId } from './aceAnimations';
+import { loadAceAnimationId, saveAceAnimationId, type AceAnimation } from './aceAnimations';
 
 export interface Toast {
   id: number;
@@ -20,6 +20,9 @@ interface AppState {
   // Laptop-local pick of the Ace-of-Spades celebration video (null = off).
   aceAnimationId: string | null;
   setAceAnimation: (id: string | null) => void;
+  // Host-uploaded animations, loaded async from IndexedDB on the table view.
+  customAnimations: AceAnimation[];
+  setCustomAnimations: (anims: AceAnimation[]) => void;
   // Bumped by the host panel's Preview button; the overlay replays on change.
   aceTestNonce: number;
   triggerAceTest: () => void;
@@ -48,6 +51,8 @@ export const useApp = create<AppState>((set) => ({
     saveAceAnimationId(id);
     set({ aceAnimationId: id });
   },
+  customAnimations: [],
+  setCustomAnimations: (anims) => set({ customAnimations: anims }),
   aceTestNonce: 0,
   triggerAceTest: () => set((s) => ({ aceTestNonce: s.aceTestNonce + 1 })),
 }));

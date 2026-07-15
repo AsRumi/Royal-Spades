@@ -137,6 +137,16 @@ export interface CardBackRef {
   src?: string; // present only for kind === 'custom'
 }
 
+// A host-made table surface: an imported photo that replaces the velvet felt
+// while keeping a builtin theme's gold/text tokens. Like custom backs it lives
+// in the laptop's localStorage and travels as a downscaled data URL so phones
+// render the same table.
+export interface TableImageRef {
+  id: string;
+  name: string;
+  src: string; // data URL
+}
+
 // ---------------------------------------------------------------------------
 // Socket event contract (03-realtime.md)
 // ---------------------------------------------------------------------------
@@ -155,6 +165,7 @@ export interface RoomStatePayload {
   seats: SeatInfo[];
   phase: Phase;
   themeId: string;
+  tableImage: TableImageRef | null; // set when a custom table overrides the felt
   back: CardBackRef;
 }
 
@@ -198,7 +209,9 @@ export interface ClientToServerEvents {
   'game:start': (payload: Record<string, never>) => void;
   'bid:submit': (payload: { bid: number }) => void;
   'card:play': (payload: { cardId: CardId }) => void;
-  'theme:set': (payload: { themeId: string }) => void;
+  // A builtin theme is just its id; a custom table also carries the image and
+  // keeps themeId as the base theme whose tokens (gold, text) it borrows.
+  'theme:set': (payload: { themeId: string; tableImage?: TableImageRef | null }) => void;
   'back:set': (payload: { back: CardBackRef }) => void;
   'game:restart': (payload: Record<string, never>) => void;
 }

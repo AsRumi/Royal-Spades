@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import type { CardBackRef, GameConfig, GameState, Phase, RoomStatePayload, SeatInfo } from '../../shared/src/index.js';
+import type { CardBackRef, GameConfig, GameState, Phase, RoomStatePayload, SeatInfo, TableImageRef } from '../../shared/src/index.js';
 import { defaultConfig } from '../../shared/src/index.js';
 
 export interface Seat {
@@ -17,6 +17,7 @@ export interface Room {
   seats: (Seat | null)[];
   state: GameState | null; // authoritative engine state once the game starts
   themeId: string;
+  tableImage: TableImageRef | null; // custom table overriding the felt, if any
   back: CardBackRef;
   nextHandTimer: NodeJS.Timeout | null;
 }
@@ -51,6 +52,7 @@ export function createRoom(configOverrides?: Partial<GameConfig>): Room {
     seats: Array.from({ length: config.seatCount }, () => null),
     state: null,
     themeId: DEFAULT_THEME_ID,
+    tableImage: null,
     back: { ...DEFAULT_BACK },
     nextHandTimer: null,
   };
@@ -100,6 +102,7 @@ export function roomStatePayload(room: Room, joinUrl: string): RoomStatePayload 
     seats,
     phase: roomPhase(room),
     themeId: room.themeId,
+    tableImage: room.tableImage,
     back: room.back,
   };
 }
