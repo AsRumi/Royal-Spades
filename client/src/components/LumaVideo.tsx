@@ -40,9 +40,15 @@ export function LumaVideo({ src, onEnded }: LumaVideoProps) {
     const video = videoRef.current;
     if (!canvas || !video) return;
 
+    // Play with sound so an animation's audio track is heard on the TV. If the
+    // browser's autoplay policy refuses unmuted playback (no interaction with
+    // the page yet), retry muted rather than dropping the effect entirely.
+    video.muted = false;
     void video.play().catch(() => {
-      // Autoplay refused (shouldn't happen muted); end quietly.
-      endedRef.current();
+      video.muted = true;
+      void video.play().catch(() => {
+        endedRef.current();
+      });
     });
 
     const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true });
@@ -111,7 +117,6 @@ export function LumaVideo({ src, onEnded }: LumaVideoProps) {
       <video
         ref={videoRef}
         src={src}
-        muted
         playsInline
         preload="auto"
         onEnded={onEnded}

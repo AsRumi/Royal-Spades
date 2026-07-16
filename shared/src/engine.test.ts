@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { buildDeck, cardSuit, handSize, sortHand } from './cards.js';
-import { defaultConfig, resolveTeams, teamOfSeat, validateConfig } from './config.js';
+import {
+  SUPPORTED_SEAT_COUNTS,
+  configForSeatCount,
+  defaultConfig,
+  resolveTeams,
+  teamOfSeat,
+  validateConfig,
+} from './config.js';
 import {
   createGame,
   handFor,
@@ -358,6 +365,41 @@ describe('full deterministic hands', () => {
     expect(state.tricksWon.reduce((a, b) => a + b, 0)).toBe(17);
     const scored = mustOk(scoreHand(state));
     expect(scored.scores).toHaveLength(3);
+  });
+
+  it('configForSeatCount produces valid modes: 4 partnership, 3/5/6 cutthroat', () => {
+    const expected: Record<number, { hand: number; solo: boolean }> = {
+      3: { hand: 17, solo: true },
+      4: { hand: 13, solo: false },
+      5: { hand: 10, solo: true },
+      6: { hand: 8, solo: true },
+    };
+    for (const seatCount of SUPPORTED_SEAT_COUNTS) {
+      const config = configForSeatCount(seatCount);
+      expect(validateConfig(config)).toEqual([]);
+      expect(config.seatCount).toBe(seatCount);
+      expect(handSize(config)).toBe(expected[seatCount].hand);
+      expect(config.bidding.max).toBe(expected[seatCount].hand);
+      expect(config.partnerships === null).toBe(expected[seatCount].solo);
+      expect(buildDeck(config)).toHaveLength(seatCount * expected[seatCount].hand);
+    }
+    expect(() => configForSeatCount(7)).toThrow();
+  });
+
+  it.each([5, 6])('plays a complete %i-player cutthroat hand and scores every solo team', (seatCount) => {
+    const config = configForSeatCount(seatCount);
+    let state = freshHand(config, 777 + seatCount);
+    expect(state.teams).toEqual(Array.from({ length: seatCount }, (_, seat) => [seat]));
+    state.hands.forEach((h) => expect(h).toHaveLength(handSize(config)));
+    for (const removed of config.removedCards) {
+      expect(state.hands.flat()).not.toContain(removed);
+    }
+
+    state = playFullHand(state);
+    expect(state.tricksWon.reduce((a, b) => a + b, 0)).toBe(handSize(config));
+    const scored = mustOk(scoreHand(state));
+    expect(scored.scores).toHaveLength(seatCount);
+    expect(scored.lastHandResults).toHaveLength(seatCount);
   });
 
   it('plays multiple hands with a rotating dealer until someone can win', () => {

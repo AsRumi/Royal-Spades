@@ -17,9 +17,12 @@ export function SeatPod({ seat }: Props) {
   if (!pub) return null;
 
   const seatCount = pub.handCounts.length;
+  // Crowded tables (5–6 seats) get slimmer fans nudged a touch further out
+  // (still inside the rail) so neighbouring hands never overlap.
+  const crowd = seatCount <= 4 ? 1 : seatCount === 5 ? 0.8 : 0.68;
   const p = seatPoint(seat, seatCount);
   // Fan anchor sits inside the rail so the cards straddle the table edge.
-  const fan = seatPoint(seat, seatCount, 0, 27, 24);
+  const fan = seatPoint(seat, seatCount, 0, 27 + (1 - crowd) * 6, 24 + (1 - crowd) * 8);
   const info = room?.seats?.[seat];
   const isActive =
     (pub.phase === "BIDDING" || pub.phase === "PLAYING") &&
@@ -40,7 +43,10 @@ export function SeatPod({ seat }: Props) {
           transform: `translate(-50%, -50%) rotate(${fan.angle}deg)`,
         }}
       >
-        <div className="relative h-[16vmin] w-[34vmin]">
+        <div
+          className="relative"
+          style={{ height: `${16 * crowd}vmin`, width: `${34 * crowd}vmin` }}
+        >
           <AnimatePresence>
             {Array.from({ length: fanCards }, (_, i) => {
               const spread = fanCards > 1 ? i / (fanCards - 1) - 0.5 : 0;
@@ -51,8 +57,11 @@ export function SeatPod({ seat }: Props) {
                   animate={{ opacity: 1, y: 0, rotate: spread * 44 }}
                   exit={{ opacity: 0, scale: 0.6 }}
                   transition={{ delay: i * 0.035, duration: 0.3 }}
-                  className="absolute bottom-0 left-1/2 w-[9vmin] origin-bottom"
-                  style={{ marginLeft: `${spread * 20 - 4.5}vmin` }}
+                  className="absolute bottom-0 left-1/2 origin-bottom"
+                  style={{
+                    width: `${9 * crowd}vmin`,
+                    marginLeft: `${(spread * 20 - 4.5) * crowd}vmin`,
+                  }}
                 >
                   <CardBackView />
                 </motion.div>

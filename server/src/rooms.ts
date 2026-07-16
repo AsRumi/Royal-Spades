@@ -60,6 +60,18 @@ export function createRoom(configOverrides?: Partial<GameConfig>): Room {
   return room;
 }
 
+// Lobby-only reshape: swap the room's config and resize the seat array.
+// Seated players keep their seat indices (so phones' seat/token bindings
+// survive); returns false if shrinking would drop a seated player.
+export function reconfigureRoom(room: Room, config: GameConfig): boolean {
+  if (room.seats.some((seat, index) => seat !== null && index >= config.seatCount)) {
+    return false;
+  }
+  room.config = config;
+  room.seats = Array.from({ length: config.seatCount }, (_, index) => room.seats[index] ?? null);
+  return true;
+}
+
 export function getRoom(code: string | undefined | null): Room | undefined {
   if (!code) return undefined;
   return rooms.get(code.toUpperCase());

@@ -12,6 +12,8 @@ import type {
   ServerToClientEvents,
 } from '../../shared/src/index.js';
 import {
+  SUPPORTED_SEAT_COUNTS,
+  configForSeatCount,
   createGame,
   handFor,
   playCard,
@@ -28,6 +30,7 @@ import type { Room } from './rooms.js';
 import {
   createRoom,
   getRoom,
+  reconfigureRoom,
   roomStatePayload,
   seatByToken,
   seatOfSocket,
@@ -224,6 +227,35 @@ export function wireSockets(io: Io, buildJoinUrl: (roomCode: string) => string):
       } catch {
         ack({ ok: false, error: { code: 'JOIN_FAILED', message: 'Could not join the room.' } });
       }
+    });
+
+    socket.on('room:configure', (payload) => {
+      const room = hostContext(socket);
+      if (!room) return;
+      if (room.state) {
+        emitError(socket, 'ALREADY_STARTED', 'The table size can only change in the lobby.');
+        return;
+      }
+      const seatCount = Number(payload?.seatCount);
+      if (!(SUPPORTED_SEAT_COUNTS as readonly number[]).includes(seatCount)) {
+        emitError(
+          socket,
+          'BAD_SEAT_COUNT',
+          `Supported table sizes: ${SUPPORTED_SEAT_COUNTS.join(', ')} players.`,
+        );
+        return;
+      }
+      const config = configForSeatCount(seatCount);
+      const configErrors = validateConfig(config);
+      if (configErrors.length > 0) {
+        emitError(socket, 'INVALID_CONFIG', configErrors.join('; '));
+        return;
+      }
+      if (!reconfigureRoom(room, config)) {
+        emitError(socket, 'SEATS_OCCUPIED', 'Too many players are already seated for that size.');
+        return;
+      }
+      broadcastRoomState(room);
     });
 
     socket.on('game:start', () => {

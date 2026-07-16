@@ -206,6 +206,9 @@ export interface ClientToServerEvents {
     payload: { roomCode: string; name: string; rejoinToken?: string },
     ack: (res: RoomJoinAck) => void,
   ) => void;
+  // Lobby-only: the table switches the room between the supported player
+  // counts (3/5/6 cutthroat, 4 partnership). Server rebuilds the config.
+  'room:configure': (payload: { seatCount: number }) => void;
   'game:start': (payload: Record<string, never>) => void;
   'bid:submit': (payload: { bid: number }) => void;
   'card:play': (payload: { cardId: CardId }) => void;

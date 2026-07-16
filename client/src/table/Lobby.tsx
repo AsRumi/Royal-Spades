@@ -1,3 +1,4 @@
+import { SUPPORTED_SEAT_COUNTS } from '@shared';
 import { AnimatePresence, motion } from 'framer-motion';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
@@ -5,8 +6,9 @@ import { seatPoint } from '../seatLayout';
 import { getSocket } from '../socket';
 import { useApp } from '../store';
 
-// The TV lobby: big regal room code, QR join, and a ring of seats that fill
-// as phones connect. Start unlocks when every seat is taken.
+// The TV lobby: big regal room code, QR join, a table-size picker (4 plays
+// partners, 3/5/6 play solo), and a ring of seats that fill as phones
+// connect. Start unlocks when every seat is taken.
 export function Lobby() {
   const room = useApp((s) => s.room);
   const [qr, setQr] = useState<string | null>(null);
@@ -115,6 +117,38 @@ export function Lobby() {
           Scan with your phone, or visit{' '}
           <span className="whitespace-nowrap text-gold-soft">{room?.joinUrl ?? '…'}</span>
         </div>
+
+        {/* Table size — 4 plays partners, everything else is cutthroat */}
+        <div className="mt-[2vmin] font-ui text-[1.4vmin] uppercase tracking-[0.3em] text-gold-soft/90">
+          Table Size
+        </div>
+        <div className="mt-[1vmin] flex items-center gap-[1.2vmin]">
+          {SUPPORTED_SEAT_COUNTS.map((count) => {
+            const selected = room?.seatCount === count;
+            // A size is off the menu while a seated player would lose their chair.
+            const blocked = seats.some((seat) => seat.occupied && seat.seat >= count);
+            return (
+              <button
+                key={count}
+                onClick={() => getSocket().emit('room:configure', { seatCount: count })}
+                disabled={selected || blocked}
+                className={`flex h-[5vmin] w-[5vmin] items-center justify-center rounded-full border font-display text-[2.4vmin] transition ${
+                  selected
+                    ? 'border-gold bg-felt-glow text-gold-soft shadow-glow'
+                    : 'border-gold/40 text-ivory/70 hover:border-gold hover:text-gold-soft disabled:opacity-30 disabled:hover:border-gold/40 disabled:hover:text-ivory/70'
+                }`}
+              >
+                {count}
+              </button>
+            );
+          })}
+        </div>
+        <div className="mt-[0.8vmin] font-ui text-[1.4vmin] text-ivory/70">
+          {room?.seatCount === 4
+            ? 'Partners — teammates sit across'
+            : 'Cutthroat — every player for themselves'}
+        </div>
+
         <button
           onClick={() => getSocket().emit('game:start', {})}
           disabled={!allSeated}

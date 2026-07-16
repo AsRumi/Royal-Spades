@@ -1,5 +1,5 @@
 import { handSize, isValidCardId } from './cards.js';
-import type { GameConfig } from './types.js';
+import type { CardId, GameConfig } from './types.js';
 
 // The v1 product config: 4-player partnership Spades, partners across.
 // Nothing in the engine hardcodes these numbers — variants are new configs:
@@ -30,6 +30,40 @@ export function defaultConfig(): GameConfig {
     targetScore: 500,
     spadesBrokenToLead: true,
   };
+}
+
+// The seat counts the lobby can switch between. 4 is the classic partnership
+// game; every other count is cutthroat (each seat its own team) with just
+// enough low cards removed so the deck deals evenly.
+export const SUPPORTED_SEAT_COUNTS = [3, 4, 5, 6] as const;
+
+// Which cards leave the deck per mode. Lowest non-spade deuces go first so
+// the trump suit stays as intact as possible (6-player must give up the S2).
+const REMOVED_CARDS_BY_SEAT_COUNT: Record<number, CardId[]> = {
+  3: ['C2'], // 51 cards → 17 each
+  4: [], // 52 cards → 13 each
+  5: ['C2', 'D2'], // 50 cards → 10 each
+  6: ['C2', 'D2', 'H2', 'S2'], // 48 cards → 8 each
+};
+
+// Build the config for a lobby-selected player count. Only 4-player keeps
+// partnerships; 3/5/6 are cutthroat. Everything downstream (deal, bidding
+// range, scoring teams) derives from this object.
+export function configForSeatCount(seatCount: number): GameConfig {
+  const base = defaultConfig();
+  if (seatCount === base.seatCount) return base;
+  const removedCards = REMOVED_CARDS_BY_SEAT_COUNT[seatCount];
+  if (!removedCards) {
+    throw new Error(`Unsupported seat count: ${seatCount}`);
+  }
+  const config: GameConfig = {
+    ...base,
+    seatCount,
+    removedCards: removedCards.slice(),
+    partnerships: null,
+  };
+  config.bidding = { ...base.bidding, max: handSize(config) };
+  return config;
 }
 
 // Resolve teams: explicit partnerships, or one solo team per seat (cutthroat).
