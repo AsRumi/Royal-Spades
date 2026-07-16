@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState } from 'react';
 
-// Plays a black-background video through a WebGL luma-key shader: dark pixels
-// become transparent so the effect floats over the felt. Colors are output
-// premultiplied to avoid dark fringes at the key edge. If WebGL is missing we
-// fall back to `mix-blend-mode: screen`, which also drops pure black.
+// Persistent luma-key player. Mounted once and kept alive: the WebGL context,
+// compiled shaders, and texture are created a single time, and the selected
+// video is preloaded (and its decoder warmed by drawing the first frame)
+// ahead of any trigger. Starting a playback is then just seek-to-0 + play(),
+// so the effect appears within a frame or two of the event instead of paying
+// fetch/demux/decoder-init/shader-compile costs at trigger time.
+//
+// The shader keys dark pixels transparent so the effect floats over the felt;
+// colors are output premultiplied to avoid dark fringes at the key edge. If
+// WebGL is missing we fall back to `mix-blend-mode: screen`, which also drops
+// pure black.
 const VERT = `
 attribute vec2 aPos;
 varying vec2 vUv;
@@ -24,33 +31,41 @@ void main() {
 }`;
 
 interface LumaVideoProps {
-  src: string;
+  src: string | null; // the selected animation, preloaded on change; null = none
+  playNonce: number; // increments to start a playback of the preloaded video
   onEnded: () => void;
 }
 
-export function LumaVideo({ src, onEnded }: LumaVideoProps) {
+export function LumaVideo({ src, playNonce, onEnded }: LumaVideoProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const glRef = useRef<WebGLRenderingContext | null>(null);
+  const rafRef = useRef(0);
+  const lastNonce = useRef(playNonce);
   const [webglFailed, setWebglFailed] = useState(false);
   const endedRef = useRef(onEnded);
   endedRef.current = onEnded;
 
-  useEffect(() => {
+  // Reads only refs, so every closure over it stays valid across renders.
+  const drawFrame = () => {
+    const gl = glRef.current;
     const canvas = canvasRef.current;
     const video = videoRef.current;
-    if (!canvas || !video) return;
+    if (!gl || !canvas || !video) return;
+    if (video.readyState < video.HAVE_CURRENT_DATA || video.videoWidth === 0) return;
+    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+    }
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  };
 
-    // Play with sound so an animation's audio track is heard on the TV. If the
-    // browser's autoplay policy refuses unmuted playback (no interaction with
-    // the page yet), retry muted rather than dropping the effect entirely.
-    video.muted = false;
-    void video.play().catch(() => {
-      video.muted = true;
-      void video.play().catch(() => {
-        endedRef.current();
-      });
-    });
-
+  // One-time GL pipeline, reused for every play.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
     const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: true });
     if (!gl) {
       setWebglFailed(true);
@@ -90,37 +105,72 @@ export function LumaVideo({ src, onEnded }: LumaVideoProps) {
 
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
-
-    let raf = 0;
-    const render = () => {
-      if (video.readyState >= video.HAVE_CURRENT_DATA && video.videoWidth > 0) {
-        if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-          canvas.width = video.videoWidth;
-          canvas.height = video.videoHeight;
-          gl.viewport(0, 0, canvas.width, canvas.height);
-        }
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      }
-      raf = requestAnimationFrame(render);
-    };
-    raf = requestAnimationFrame(render);
+    glRef.current = gl;
 
     return () => {
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(rafRef.current);
+      glRef.current = null;
       gl.getExtension('WEBGL_lose_context')?.loseContext();
     };
+  }, []);
+
+  // Preload + warm whenever the host's selection changes: buffer the file,
+  // then draw the first frame once so the decoder and the GPU upload path
+  // (including the first-frame color conversion) are already exercised.
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    cancelAnimationFrame(rafRef.current);
+    if (!src) {
+      video.removeAttribute('src');
+      video.load();
+      return;
+    }
+    video.src = src;
+    video.load();
+    const warm = () => drawFrame();
+    video.addEventListener('loadeddata', warm);
+    return () => video.removeEventListener('loadeddata', warm);
   }, [src]);
+
+  // Trigger: the video is already buffered and warm, so this is just play().
+  useEffect(() => {
+    if (playNonce === lastNonce.current) return;
+    lastNonce.current = playNonce;
+    const video = videoRef.current;
+    if (!video || !video.src) return;
+    video.currentTime = 0;
+    // Play with sound so an animation's audio track is heard on the TV. If the
+    // browser's autoplay policy refuses unmuted playback (no interaction with
+    // the page yet), retry muted rather than dropping the effect entirely.
+    video.muted = false;
+    void video.play().catch(() => {
+      video.muted = true;
+      void video.play().catch(() => endedRef.current());
+    });
+    cancelAnimationFrame(rafRef.current);
+    const loop = () => {
+      drawFrame();
+      rafRef.current = requestAnimationFrame(loop);
+    };
+    rafRef.current = requestAnimationFrame(loop);
+  }, [playNonce]);
+
+  const handleEnded = () => {
+    cancelAnimationFrame(rafRef.current);
+    const video = videoRef.current;
+    if (video) video.currentTime = 0; // re-prime the first frame for the next ace
+    endedRef.current();
+  };
 
   return (
     <>
       <video
         ref={videoRef}
-        src={src}
         playsInline
         preload="auto"
-        onEnded={onEnded}
-        onError={onEnded}
+        onEnded={handleEnded}
+        onError={handleEnded}
         className={
           webglFailed
             ? 'absolute inset-0 h-full w-full object-cover mix-blend-screen'
